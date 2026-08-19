@@ -1,0 +1,20 @@
+# Assistant Configuration Example
+agent:
+  use_case: assistant
+  name: "general-assistant"
+  description: "General-purpose helpful assistant with document retrieval and web search."
+
+model:
+  provider: openai
+  name: gpt-4o
+  temperature: 0.7
+
+instructions:
+  value: |
+    You are a friendly, highly capable assistant.
+    Provide concise, helpful answers.
+    When questions involve domain data, use the knowledge tool.
+    When questions involve recent events, use search.
+
+tools:
+  enabled: [knowledge, search, approval, runtime]

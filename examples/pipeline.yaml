@@ -1,0 +1,23 @@
+# Pipeline Use Case Example
+agent:
+  use_case: pipeline
+  name: "data-pipeline-agent"
+  description: "Sequential data fetching, analysis, and summary generation pipeline."
+
+model:
+  provider: openai
+  name: gpt-4o
+
+execution:
+  steps: 3
+
+roles:
+  step_0:
+    instruction: "Fetch and extract the core data points and facts related to the inquiry."
+  step_1:
+    instruction: "Analyze the extracted facts for trends, anomalies, and critical insights."
+  step_2:
+    instruction: "Synthesize the analysis into an executive summary with actionable recommendations."
+
+tools:
+  enabled: [knowledge, search, runtime]

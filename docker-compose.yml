@@ -1,0 +1,139 @@
+services:
+  # ==============================================================================
+  # Primary Agent API Service (LangChain & LangGraph Runtime)
+  # ==============================================================================
+  agent-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: generic-agent-lang:latest
+    container_name: generic-agent-lang-api
+    restart: unless-stopped
+    ports:
+      - "8002:8002"
+    environment:
+      - APP_NAME=generic_agent
+      - DEPLOYMENT_ENV=${DEPLOYMENT_ENV:-docker-compose}
+      - AGENT_MODEL=${AGENT_MODEL:-openai/gpt-4o}
+      - AGENT_USE_CASE=${AGENT_USE_CASE:-assistant}
+      - AGENT_TOOLS=${AGENT_TOOLS:-knowledge,search,mcp,openapi,approval,runtime,structured_output}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY:-}
+      - GROQ_API_KEY=${GROQ_API_KEY:-}
+      - MISTRAL_API_KEY=${MISTRAL_API_KEY:-}
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:-}
+      - TAVILY_API_KEY=${TAVILY_API_KEY:-}
+      - OLLAMA_API_BASE=${OLLAMA_API_BASE:-http://host.docker.internal:11434}
+      - AUTH_DISABLED=${AUTH_DISABLED:-false}
+      - KEYCLOAK_ISSUER=${KEYCLOAK_ISSUER:-http://keycloak:8080/realms/basic-agent}
+      - KEYCLOAK_AUDIENCE=${KEYCLOAK_AUDIENCE:-basic-agent}
+      - AGENT_SERVICE_API_URL=http://demo-service:8001
+      - AGENT_OPENAPI_URL=http://demo-service:8001
+    volumes:
+      - ./config:/app/config:ro
+      - ./skills:/app/skills:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - agent-net
+
+  # ==============================================================================
+  # Live WebSocket Service (Interactive streaming)
+  # ==============================================================================
+  agent-live:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: generic-agent-lang:latest
+    container_name: generic-agent-lang-live
+    restart: unless-stopped
+    command: ["uv", "run", "uvicorn", "generic_agent.interfaces.live:app", "--host", "0.0.0.0", "--port", "8003"]
+    ports:
+      - "8003:8003"
+    environment:
+      - APP_NAME=generic_agent
+      - DEPLOYMENT_ENV=${DEPLOYMENT_ENV:-docker-compose}
+      - LIVE_AGENT_MODEL=${LIVE_AGENT_MODEL:-openai/gpt-4o}
+      - AGENT_USE_CASE=${AGENT_USE_CASE:-assistant}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY:-}
+      - AUTH_DISABLED=${AUTH_DISABLED:-false}
+      - KEYCLOAK_ISSUER=${KEYCLOAK_ISSUER:-http://keycloak:8080/realms/basic-agent}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8003/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - agent-net
+    profiles:
+      - live
+
+  # ==============================================================================
+  # Keycloak Identity & Access Management
+  # ==============================================================================
+  keycloak:
+    image: quay.io/keycloak/keycloak:24.0.5
+    container_name: generic-agent-keycloak
+    command: start-dev --import-realm
+    ports:
+      - "8080:8080"
+    environment:
+      - KEYCLOAK_ADMIN=${KEYCLOAK_ADMIN:-admin}
+      - KEYCLOAK_ADMIN_PASSWORD=${KEYCLOAK_ADMIN_PASSWORD:-admin}
+      - KC_HEALTH_ENABLED=true
+    volumes:
+      - ./keycloak/realm-basic-agent-dev.json:/opt/keycloak/data/import/realm.json:ro
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/localhost/8080 && echo -e 'GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && cat <&3 | grep -q '200 OK'"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    networks:
+      - agent-net
+
+  # ==============================================================================
+  # Forward-Auth Gateway
+  # ==============================================================================
+  auth-gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: generic-agent-lang:latest
+    container_name: generic-agent-auth-gateway
+    command: ["uv", "run", "uvicorn", "generic_agent.auth.gateway:app", "--host", "0.0.0.0", "--port", "8010"]
+    ports:
+      - "8010:8010"
+    environment:
+      - KEYCLOAK_ISSUER=http://keycloak:8080/realms/basic-agent
+      - AUTH_DISABLED=${AUTH_DISABLED:-false}
+    networks:
+      - agent-net
+
+  # ==============================================================================
+  # Demo OpenAPI & Status Service
+  # ==============================================================================
+  demo-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: generic-agent-lang:latest
+    container_name: generic-agent-demo-service
+    command: ["uv", "run", "uvicorn", "generic_agent.interfaces.service:app", "--host", "0.0.0.0", "--port", "8001"]
+    ports:
+      - "8001:8001"
+    environment:
+      - AUTH_DISABLED=${AUTH_DISABLED:-true}
+    networks:
+      - agent-net
+    profiles:
+      - demo
+
+networks:
+  agent-net:
+    driver: bridge

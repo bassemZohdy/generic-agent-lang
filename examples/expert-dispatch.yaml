@@ -1,0 +1,26 @@
+# Expert Dispatch Use Case Example
+agent:
+  use_case: expert_dispatch
+  name: "support-dispatcher"
+  description: "Triages requests and dispatches them to domain specialists."
+
+model:
+  provider: openai
+  name: gpt-4o
+
+execution:
+  specialists: [billing, technical, legal]
+
+roles:
+  billing:
+    instruction: "You are the billing and payments specialist. Answer invoicing and subscription questions accurately."
+    tools: [knowledge, openapi]
+  technical:
+    instruction: "You are the technical support engineer. Resolve API errors, infrastructure issues, and code bugs."
+    tools: [search, runtime]
+  legal:
+    instruction: "You are the legal and compliance advisor. Provide guidance on terms of service, privacy, and licenses."
+    tools: [knowledge]
+
+tools:
+  enabled: [knowledge, search, openapi, runtime]

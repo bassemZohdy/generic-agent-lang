@@ -1,0 +1,215 @@
+"""Process-level settings loaded from the environment."""
+
+from __future__ import annotations
+
+import os
+from dataclasses import dataclass
+from typing import Tuple
+
+from ..util import is_production, split_csv
+
+
+def _env(name: str, default: str = "") -> str:
+    return os.getenv(name, default).strip()
+
+
+def _roles(name: str, default: str) -> tuple[str, ...]:
+    return tuple(split_csv(_env(name, default)))
+
+
+def _bool(name: str, default: bool = False) -> bool:
+    raw = _env(name, "true" if default else "false").lower()
+    if raw not in {"true", "false", "1", "0", "yes", "no"}:
+        raise ValueError(f"{name} must be true or false; got {raw!r}")
+    return raw in {"true", "1", "yes"}
+
+
+def _int(name: str, default: int, *, minimum: int = 0) -> int:
+    raw = _env(name, str(default))
+    try:
+        val = int(raw)
+    except ValueError as err:
+        raise ValueError(f"{name} must be an integer; got {raw!r}") from err
+    if val < minimum:
+        raise ValueError(f"{name} must be at least {minimum}; got {val}")
+    return val
+
+
+def _float(name: str, default: float, *, minimum: float = 0.0) -> float:
+    raw = _env(name, str(default))
+    try:
+        val = float(raw)
+    except ValueError as err:
+        raise ValueError(f"{name} must be a number; got {raw!r}") from err
+    if val < minimum:
+        raise ValueError(f"{name} must be at least {minimum}; got {val}")
+    return val
+
+
+@dataclass(frozen=True)
+class Settings:
+    """Immutable runtime process configuration."""
+
+    app_name: str
+    app_version: str
+    deployment: str
+    model: str
+    live_model: str
+    service_api_url: str
+    service_api_key: str
+    auth_disabled: bool
+    keycloak_issuer: str
+    keycloak_jwks_url: str
+    keycloak_jwks_timeout: float
+    keycloak_audience: str
+    keycloak_role_claim: str
+    keycloak_required_roles: tuple[str, ...]
+    service_api_roles: tuple[str, ...]
+    live_api_roles: tuple[str, ...]
+    plugin_name: str
+    agent_description: str
+    agent_instruction: str
+    enabled_tools: tuple[str, ...]
+    enable_knowledge: bool
+    enable_search: bool
+    enable_code_execution: bool
+    enable_mcp: bool
+    enable_skills: bool
+    enable_openapi: bool
+    enable_application_integration: bool
+    enable_structured_output: bool
+    knowledge_file: str
+    knowledge_result_limit: int
+    max_iterations: int
+    specialists: tuple[str, ...]
+    mcp_tools: tuple[str, ...]
+    mcp_tool_prefix: str
+    skills_dir: str
+    skills_tool_prefix: str
+    openapi_url: str
+    openapi_path: str
+    openapi_title: str
+    openapi_tool_prefix: str
+    application_tool_prefix: str
+    application_tool_instructions: str
+    gcp_project: str
+    gcp_location: str
+    gcp_integration: str
+    gcp_triggers: tuple[str, ...]
+    live_max_message_bytes: int
+    live_max_audio_bytes: int
+    live_max_messages_per_minute: int
+    code_execution_strategy: str
+    code_execution_docker_host: str
+    code_execution_docker_image: str
+    code_execution_vertex_resource: str
+    code_execution_agent_engine_resource: str
+    code_execution_gke_kubeconfig_path: str
+    code_execution_gke_kubeconfig_context: str
+
+
+def load_settings() -> Settings:
+    """Load settings from current environment."""
+    app_name = _env("APP_NAME", "generic_agent")
+    deployment = _env("DEPLOYMENT_ENV", "docker-compose")
+    issuer = _env("KEYCLOAK_ISSUER")
+    auth_disabled = _bool("AUTH_DISABLED", default=False)
+
+    if is_production(deployment) and not issuer and not auth_disabled:
+        raise ValueError(
+            "KEYCLOAK_ISSUER is required when DEPLOYMENT_ENV is production-like; "
+            "set AUTH_DISABLED=true only for an intentional unauthenticated deployment"
+        )
+
+    enabled_tools = _roles(
+        "AGENT_TOOLS",
+        "knowledge,search,mcp,openapi,approval,runtime,structured_output",
+    )
+
+    # Support either AGENT_MODEL, LANGCHAIN_MODEL, or ADK_MODEL for backward compatibility
+    model = (
+        _env("AGENT_MODEL")
+        or _env("LANGCHAIN_MODEL")
+        or _env("ADK_MODEL")
+        or "openai/gpt-4o"
+    )
+    live_model = (
+        _env("LIVE_AGENT_MODEL")
+        or _env("LIVE_ADK_MODEL")
+        or "openai/gpt-4o"
+    )
+
+    return Settings(
+        app_name=app_name,
+        app_version=_env("APP_VERSION", "0.1.0"),
+        deployment=deployment,
+        model=model,
+        live_model=live_model,
+        service_api_url=_env("AGENT_SERVICE_API_URL", "http://127.0.0.1:8001"),
+        service_api_key=_env("AGENT_SERVICE_API_KEY"),
+        auth_disabled=auth_disabled,
+        keycloak_issuer=issuer,
+        keycloak_jwks_url=_env(
+            "KEYCLOAK_JWKS_URL",
+            f"{issuer.rstrip('/')}/protocol/openid-connect/certs" if issuer else "",
+        ),
+        keycloak_jwks_timeout=_float("KEYCLOAK_JWKS_TIMEOUT", 5.0, minimum=0.1),
+        keycloak_audience=_env("KEYCLOAK_AUDIENCE", "basic-agent"),
+        keycloak_role_claim=_env("KEYCLOAK_ROLE_CLAIM", "realm_access.roles"),
+        keycloak_required_roles=_roles("KEYCLOAK_REQUIRED_ROLES", "agent-user"),
+        service_api_roles=_roles("AGENT_SERVICE_API_ROLES", "agent-user"),
+        live_api_roles=_roles("LIVE_API_ROLES", "agent-user"),
+        plugin_name=_env("AGENT_PLUGIN_NAME", "generic_agent_plugin"),
+        agent_description=_env(
+            "AGENT_DESCRIPTION",
+            "A general-purpose, configuration-driven LangChain and LangGraph agent.",
+        ),
+        agent_instruction=_env(
+            "AGENT_INSTRUCTION",
+            "Answer the user's request helpfully and accurately. Use configured tools when useful. "
+            "State assumptions, cite evidence when available, and do not claim actions you did not perform.",
+        ),
+        enabled_tools=enabled_tools,
+        enable_knowledge="knowledge" in enabled_tools,
+        enable_search="search" in enabled_tools,
+        enable_code_execution="code_execution" in enabled_tools,
+        enable_mcp="mcp" in enabled_tools,
+        enable_skills="skills" in enabled_tools,
+        enable_openapi="openapi" in enabled_tools,
+        enable_application_integration="application_integration" in enabled_tools,
+        enable_structured_output="structured_output" in enabled_tools,
+        knowledge_file=_env("AGENT_KNOWLEDGE_FILE"),
+        knowledge_result_limit=_int("AGENT_KNOWLEDGE_RESULT_LIMIT", 3, minimum=1),
+        max_iterations=_int("AGENT_MAX_ITERATIONS", 3, minimum=1),
+        specialists=_roles("AGENT_SPECIALISTS", "research,solution,risk"),
+        mcp_tools=_roles("AGENT_MCP_TOOLS", "get_service_status"),
+        mcp_tool_prefix=_env("AGENT_MCP_TOOL_PREFIX", "mcp_"),
+        skills_dir=_env("AGENT_SKILLS_DIR"),
+        skills_tool_prefix=_env("AGENT_SKILLS_TOOL_PREFIX"),
+        openapi_url=_env("AGENT_OPENAPI_URL", "http://127.0.0.1:8001"),
+        openapi_path=_env("AGENT_OPENAPI_PATH", "/status"),
+        openapi_title=_env("AGENT_OPENAPI_TITLE", "Configured Service API"),
+        openapi_tool_prefix=_env("AGENT_OPENAPI_TOOL_PREFIX", "api_"),
+        application_tool_prefix=_env("AGENT_APPLICATION_TOOL_PREFIX", "integration_"),
+        application_tool_instructions=_env(
+            "AGENT_APPLICATION_TOOL_INSTRUCTIONS",
+            "Use this integration only for actions explicitly requested by the user.",
+        ),
+        gcp_project=_env("GOOGLE_CLOUD_PROJECT") or _env("GCP_PROJECT"),
+        gcp_location=_env("GCP_LOCATION", "us-central1"),
+        gcp_integration=_env("GCP_INTEGRATION"),
+        gcp_triggers=_roles("GCP_INTEGRATION_TRIGGERS", ""),
+        live_max_message_bytes=_int("LIVE_MAX_MESSAGE_BYTES", 1_048_576, minimum=1),
+        live_max_audio_bytes=_int("LIVE_MAX_AUDIO_BYTES", 786_432, minimum=1),
+        live_max_messages_per_minute=_int("LIVE_MAX_MESSAGES_PER_MINUTE", 60, minimum=1),
+        code_execution_strategy=_env("AGENT_CODE_EXECUTION_STRATEGY"),
+        code_execution_docker_host=_env("AGENT_CODE_EXECUTION_DOCKER_HOST"),
+        code_execution_docker_image=_env("AGENT_CODE_EXECUTION_DOCKER_IMAGE"),
+        code_execution_vertex_resource=_env("AGENT_CODE_EXECUTION_VERTEX_RESOURCE"),
+        code_execution_agent_engine_resource=_env("AGENT_CODE_EXECUTION_AGENT_ENGINE_RESOURCE"),
+        code_execution_gke_kubeconfig_path=_env("AGENT_CODE_EXECUTION_GKE_KUBECONFIG_PATH"),
+        code_execution_gke_kubeconfig_context=_env("AGENT_CODE_EXECUTION_GKE_KUBECONFIG_CONTEXT"),
+    )
+
+
+settings = load_settings()

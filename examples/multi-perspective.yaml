@@ -1,0 +1,25 @@
+# Multi-Perspective Use Case Example
+agent:
+  use_case: multi_perspective
+  name: "panel-review-agent"
+  description: "Runs multiple parallel analytical perspectives and aggregates them."
+
+model:
+  provider: openai
+  name: gpt-4o
+
+execution:
+  workers: 3
+
+roles:
+  worker_0:
+    instruction: "Analyze the question purely from a technical feasibility and engineering architecture standpoint."
+  worker_1:
+    instruction: "Analyze the question from a commercial, business ROI, and user experience standpoint."
+  worker_2:
+    instruction: "Analyze the question from a security, compliance, privacy, and risk standpoint."
+  aggregator:
+    instruction: "Synthesize the engineering, business, and security perspectives into a balanced strategic report."
+
+tools:
+  enabled: [knowledge, search, runtime]

@@ -1,0 +1,28 @@
+{
+  "realm": "basic-agent",
+  "enabled": true,
+  "registrationAllowed": false,
+  "roles": {
+    "realm": [
+      {
+        "name": "agent-user",
+        "description": "Standard user role authorized to invoke generic agent services"
+      },
+      {
+        "name": "agent-admin",
+        "description": "Administrator role with full control over agent execution"
+      }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "basic-agent",
+      "enabled": true,
+      "publicClient": false,
+      "secret": "agent-client-secret-change-in-prod",
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": true
+    }
+  ]
+}

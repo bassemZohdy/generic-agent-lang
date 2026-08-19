@@ -1,0 +1,23 @@
+# Refine Until Good Use Case Example
+agent:
+  use_case: refine_until_good
+  name: "quality-refiner-agent"
+  description: "Iteratively generates solutions, evaluates them critically, and refines them until high quality is achieved."
+
+model:
+  provider: openai
+  name: gpt-4o
+
+execution:
+  max_iterations: 3
+
+roles:
+  generator:
+    instruction: "Draft or refine the response addressing all user goals and incorporating evaluator feedback."
+  evaluator:
+    instruction: |
+      Critically evaluate the generated draft on accuracy, completeness, and clarity.
+      Output JSON with score (0.0-1.0), is_acceptable (true/false), feedback (string), improvements (list).
+
+tools:
+  enabled: [knowledge, search, runtime]

@@ -1,0 +1,24 @@
+# Approval Gate Use Case Example
+agent:
+  use_case: approval_gate
+  name: "governed-action-agent"
+  description: "Proposes an action plan, halts for human approval, and executes only upon confirmation."
+
+model:
+  provider: openai
+  name: gpt-4o
+
+execution:
+  require_approval: true
+
+roles:
+  proposer:
+    instruction: |
+      Analyze the request and propose the specific plan and actions to be taken.
+      Clearly list any state modifications or external API calls.
+  completer:
+    instruction: |
+      Execute the confirmed plan and report final results.
+
+tools:
+  enabled: [knowledge, search, approval, runtime]

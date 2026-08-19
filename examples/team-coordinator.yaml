@@ -1,0 +1,27 @@
+# Team Coordinator Use Case Example
+agent:
+  use_case: team_coordinator
+  name: "project-coordinator"
+  description: "Supervisor agent coordinating research, writing, and code execution across a team of AI workers."
+
+model:
+  provider: openai
+  name: gpt-4o
+
+execution:
+  max_iterations: 4
+  workers: 3
+
+roles:
+  worker_0:
+    instruction: "You are the researcher. Gather facts, documentation, and external references."
+    tools: [knowledge, search]
+  worker_1:
+    instruction: "You are the developer. Implement algorithms, scripts, and verified logic."
+    tools: [runtime]
+  worker_2:
+    instruction: "You are the QA reviewer. Audit the work for accuracy, edge cases, and clarity."
+    tools: [knowledge]
+
+tools:
+  enabled: [knowledge, search, runtime, approval]

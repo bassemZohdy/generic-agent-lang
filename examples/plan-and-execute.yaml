@@ -1,0 +1,22 @@
+# Plan and Execute Use Case Example
+agent:
+  use_case: plan_and_execute
+  name: "strategic-planner-agent"
+  description: "Creates an explicit plan before systematically carrying out execution."
+
+model:
+  provider: openai
+  name: gpt-4o
+
+roles:
+  planner:
+    instruction: |
+      Break down the complex request into an ordered, step-by-step execution plan.
+      Ensure dependencies are properly sequenced.
+  executor:
+    instruction: |
+      Execute each step in the provided plan diligently.
+      Incorporate tool results and verify outcomes.
+
+tools:
+  enabled: [knowledge, search, runtime, approval]

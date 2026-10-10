@@ -8,7 +8,7 @@
 - [x] Dynamic specialist router graph
 - [x] Supervisor team coordination graph
 - [x] Plan-and-execute graph
-- [x] Human-in-the-loop approval gate graph
+- [ ] Protected durable human approval gate (existing HUMAN_IN_LOOP prototype does not interrupt and must not authorize actions)
 - [ ] PostgreSQL / Redis checkpointer support for horizontal scaling
 - [ ] Time-travel graph state replay debugging UI
 
@@ -20,7 +20,7 @@
 ## Tooling & Capabilities
 - [x] Knowledge retrieval with mtime file caching
 - [x] Web search (Tavily, DuckDuckGo)
-- [x] Human approval gate
+- [ ] Protected approval tool (existing request_approval returns text only)
 - [x] FastMCP Model Context Protocol integration
 - [x] Dynamic OpenAPI 3.0 toolset generator
 - [x] SKILL.md folder scanner

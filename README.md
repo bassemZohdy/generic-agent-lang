@@ -1,23 +1,33 @@
 # Generic Agent Runtime (LangChain & LangGraph)
 
-An adaptable, production-ready AI agent runtime built on **LangChain** and **LangGraph**. Choose your workflow behavior, configure it via environment variables or YAML, and run it with one Docker command or as a standalone Python service.
+> **Approval limitation:** `approval_gate` / `HUMAN_IN_LOOP` does not pause
+> for a human decision. Missing or unknown status can reach completion,
+> and `request_approval` only returns text. Do not use it to authorize
+> state changes. The migration guide requires a protected durable gate.
+
+> **Consolidation preparation:** the target for portable workflow behavior is
+> [Open Workflow Agent](https://github.com/bassemZohdy/open-workflow-agent).
+> Read the [migration gates and pinned source manifest](docs/migration/README.md)
+> before changing an installed client. This source is retained; no runtime
+> migration, package rename, image promotion or archival is complete.
+
+An early configuration-driven AI agent prototype built on **LangChain** and **LangGraph**. Choose your workflow behavior, configure it via environment variables or YAML, and run it with one Docker command or as a standalone Python service.
 
 [![Tests](https://img.shields.io/badge/tests-57%20passing-brightgreen)](./tests/)
 [![Coverage](https://img.shields.io/badge/coverage-85%25%2B-brightgreen)](./tests/)
 [![Python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue)](https://www.python.org/)
 [![LangChain](https://img.shields.io/badge/LangChain-0.3-blue)](https://python.langchain.com/)
 [![LangGraph](https://img.shields.io/badge/LangGraph-0.2-orange)](https://langchain-ai.github.io/langgraph/)
-[![Status](https://img.shields.io/badge/status-production%20ready-green)](.)
 
 ---
 
 ## Highlights & Capabilities
 
-- **State Graph Architecture**: Powered by LangGraph's compiled `StateGraph` and `MemorySaver` checkpointer for stateful, cyclic, and interruptible multi-agent graphs.
+- **State Graph Architecture**: Powered by LangGraph's compiled `StateGraph` and `MemorySaver` checkpointer for stateful and cyclic multi-agent graphs.
 - **Config-Driven**: Configure everything via environment variables or YAML files with recursive `${ENV_VAR:default}` interpolation.
-- **8 Built-In Use Cases**: Direct Assistant, Pipeline, Multi-Perspective, Refine-Until-Good, Expert Dispatch, Team Coordinator, Plan-and-Execute, and Human Approval Gate.
+- **8 Built-In Use Cases**: Direct Assistant, Pipeline, Multi-Perspective, Refine-Until-Good, Expert Dispatch, Team Coordinator, Plan-and-Execute, and the unsafe approval prototype described above.
 - **Multi-Model Provider Support**: First-class support for **OpenAI**, **Anthropic**, **Google Gemini**, **Ollama**, **Groq**, **Mistral AI**, **DeepSeek**, and self-hosted vLLM gateways.
-- **Rich Tool Ecosystem**: Knowledge file retrieval with mtime caching, web search, human approval gates, Model Context Protocol (MCP), dynamic OpenAPI generator, and SKILL.md folder scanner.
+- **Rich Tool Ecosystem**: Knowledge file retrieval with mtime caching, web search, an approval-request placeholder, Model Context Protocol (MCP), dynamic OpenAPI generator, and SKILL.md folder scanner.
 - **Pluggable Code Execution Sandbox**: Isolated Docker container sandbox with CPU/Memory/PIDs limits, read-only rootfs, isolated tmpfs, and timeout recovery.
 - **Multiple Serving Interfaces**:
   - **REST API** with Server-Sent Events (SSE) token and node streaming on port `8002`.
@@ -62,7 +72,7 @@ Set `AGENT_USE_CASE` (or configure `agent.use_case` in YAML):
 | Specialist routing | `expert_dispatch` | `ROUTER` | "Billing questions to billing, tech to tech" |
 | Coordinate a team | `team_coordinator` | `SUPERVISOR` | "Coordinate research, coding, and review" |
 | Plan then execute | `plan_and_execute` | `PLAN_EXECUTE` | "Break down goal into steps and execute" |
-| Ask before acting | `approval_gate` | `HUMAN_IN_LOOP` | "Propose email, await human confirmation" |
+| Unsafe approval prototype | `approval_gate` | `HUMAN_IN_LOOP` | Do not use to authorize state changes |
 
 ```bash
 # Example: Run a 3-stage pipeline
@@ -98,7 +108,7 @@ Enable tools via `AGENT_TOOLS` (default: `knowledge,search,mcp,openapi,approval,
 - `knowledge` — Cached document search (`AGENT_KNOWLEDGE_FILE`, JSON or text)
 - `search` — Web search via Tavily or DuckDuckGo (`TAVILY_API_KEY`)
 - `code_execution` — Secure Docker sandbox execution (`AGENT_CODE_EXECUTION_STRATEGY=docker_container`)
-- `approval` — Human approval gate before state modifications
+- `approval` — Request text only; no protected pause or human authorization is implemented
 - `skills` — Load `SKILL.md` capability folders (`AGENT_SKILLS_DIR=./skills`)
 - `mcp` — Model Context Protocol tool connector
 - `openapi` — Dynamic OpenAPI 3.0 toolset generator (`AGENT_OPENAPI_URL`)
